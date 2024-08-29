@@ -1,51 +1,58 @@
 pipeline {
     agent any
-    
+
     environment {
-        // Define Terraform version and workspace if needed
-        TERRAFORM_VERSION = '1.3.7'
+        // Set environment variables if needed
+        TF_VERSION = '1.5.0'  // Specify the Terraform version
     }
-    
+
     stages {
         stage('Checkout') {
             steps {
-                // Checkout code from SCM
-                checkout scm
+                // Checkout the code from your repository
+                git 'https://github.com/your-repo/your-project.git'
             }
         }
-        
+
         stage('Terraform Init') {
             steps {
+                // Install Terraform if it's not already installed
                 script {
-                    // Initialize Terraform
-                    sh 'terraform init'
+                    def terraformHome = tool name: 'terraform', type: 'Terraform'
+                    env.PATH = "${terraformHome}/bin:${env.PATH}"
                 }
+                // Initialize Terraform
+                sh 'terraform init'
             }
         }
-        
+
         stage('Terraform Plan') {
             steps {
-                script {
-                    // Run Terraform plan
-                    sh 'terraform plan'
-                }
+                // Run Terraform plan to see changes
+                sh 'terraform plan'
             }
         }
-        
+
         //stage('Terraform Apply') {
-            steps {
-                script {
-                    // Apply Terraform configuration
-                    // You might want to add manual approval before this step in a real scenario
-                    //sh 'terraform apply -auto-approve'
-                }
-            }
-        }
-    }
-    
+        //    steps {
+                // Apply Terraform changes (typically you'd want to do this manually or with a confirmation step)
+           //     sh 'terraform apply -auto-approve'
+         //   }
+       // }
+   // }
+
     post {
         always {
-            // Clean up actions, e.g., send notifications
+            // Archive Terraform plan output
+            archiveArtifacts artifacts: '*.tfplan', allowEmptyArchive: true
+        }
+
+        success {
+            echo 'Terraform was successful!'
+        }
+
+        failure {
+            echo 'Terraform failed!'
         }
     }
 }
