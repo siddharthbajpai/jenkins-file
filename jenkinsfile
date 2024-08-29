@@ -1,63 +1,51 @@
 pipeline {
     agent any
-
+    
     environment {
-        // Uncomment and configure if using AWS credentials
-        // AWS_CREDENTIALS = 'your-aws-credentials-id'
-        // AWS_REGION = 'us-east-1'
+        // Define Terraform version and workspace if needed
+        TERRAFORM_VERSION = '1.3.7'
     }
-
-    parameters {
-        string(name: 'BRANCH', defaultValue: 'main', description: 'Git branch to build')
-    }
-
+    
     stages {
-        stage('Clone') {
+        stage('Checkout') {
             steps {
-                // Clone the GitHub repository
-                git credentialsId: 'Github',
-                    branch: params.BRANCH,
-                    url: 'https://github.com/siddharthbajpai/testjenkins.git'
+                // Checkout code from SCM
+                checkout scm
             }
         }
-
+        
         stage('Terraform Init') {
             steps {
-                // Initialize Terraform
-                sh 'terraform init'
+                script {
+                    // Initialize Terraform
+                    sh 'terraform init'
+                }
             }
         }
-
+        
         stage('Terraform Plan') {
             steps {
-                // Generate Terraform plan
-                sh 'terraform plan'
+                script {
+                    // Run Terraform plan
+                    sh 'terraform plan'
+                }
             }
         }
-
-        // Uncomment and configure if you want to apply Terraform changes
-        // stage('Terraform Apply') {
-        //     steps {
-        //         withCredentials([aws(credentialsId: "${env.AWS_CREDENTIALS}", region: "${env.AWS_REGION}")]) {
-        //             sh 'terraform apply -auto-approve'
-        //         }
-        //     }
-        // }
-
+        
+        //stage('Terraform Apply') {
+            steps {
+                script {
+                    // Apply Terraform configuration
+                    // You might want to add manual approval before this step in a real scenario
+                    //sh 'terraform apply -auto-approve'
+                }
+            }
+        }
     }
-
+    
     post {
         always {
-            // Actions that should run after every build, regardless of the outcome
-            echo 'Cleaning up...'
-        }
-        success {
-            // Actions that should run if the build succeeds
-            echo 'Terraform plan completed successfully!'
-        }
-        failure {
-            // Actions that should run if the build fails
-            echo 'Terraform plan failed!'
+            // Clean up actions, e.g., send notifications
         }
     }
 }
