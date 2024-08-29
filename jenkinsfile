@@ -1,0 +1,58 @@
+pipeline {
+    agent any
+
+    environment {
+        // Define AWS credentials and region
+        AWS_CREDENTIALS = 'your-aws-credentials-id'
+        AWS_REGION = 'us-east-1'
+    }
+
+    stages {
+        stage('Clone') {
+            steps {
+                  git credentialsId: 'Github',
+                        branch: params.BRANCH,
+                        url: 'https://github.com/siddharthbajpai/testjenkins.git'
+                }
+            }
+        }
+
+        }
+
+        stage('Terraform Init') {
+            steps {
+                
+                sh 'terraform init'
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                
+                sh 'terraform plan'
+            }
+        }
+
+    //     stage('Terraform Apply') {
+    //         steps {
+    //             withCredentials([aws(credentialsId: "${env.AWS_CREDENTIALS}", region: "${env.AWS_REGION}")]) {
+    //                 sh 'terraform apply -auto-approve'
+    //             }
+    //         }
+    //     }
+    // }
+
+    post {
+        always {
+            
+        }
+        success {
+            
+            echo 'Terraform applied successfully!'
+        }
+        failure {
+            
+            echo 'Terraform failed!'
+        }
+    }
+}
