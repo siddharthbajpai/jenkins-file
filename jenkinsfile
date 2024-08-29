@@ -1,58 +1,68 @@
 pipeline {
-    agent any
-
-    environment {
-        // Set environment variables if needed
-        TF_VERSION = '1.5.0'  // Specify the Terraform version
+    agent none
+    options {
+        ansiColor('xterm')
     }
-
-    stages {
+    parameters {
+        string(name: 'ENV', defaultValue: 'dev', description: 'Environment for Terraform deployment')
+        string(name: 'BRANCH', defaultValue: 'dev', description: 'Branch to use for deployment')
+        string(name: 'PROFILE', defaultValue: 'dev', description: 'AWS profile for deployment')
+        string(name: 'REGION', defaultValue: 'us-west-2', description: 'AWS region for deployment')
+        string(name: 'REPO_NAME', defaultValue: 'my-ecr-repo', description: 'Name of the ECR repository')
+        string(name: 'JIRATICKET_NO', defaultValue: '', description: 'Optional JIRA ticket number')
+        string(name: 'RELEASE_VERSION', defaultValue: '', description: 'Optional release version')
+    }
         stage('Checkout') {
+            agent { node('master') }
             steps {
-                // Checkout the code from your repository
-                git 'https://github.com/your-repo/your-project.git'
+                git credentialsId: 'Github',
+                    branch: master,
+                    url: 'git@github.com:siddharthbajpai/jenkins-file.git'
             }
         }
-
         stage('Terraform Init') {
+            agent { node('master') }
             steps {
-                // Install Terraform if it's not already installed
                 script {
                     def terraformHome = tool name: 'terraform', type: 'Terraform'
                     env.PATH = "${terraformHome}/bin:${env.PATH}"
                 }
-                // Initialize Terraform
-                sh 'terraform init'
+                sh '''
+                    cd terraform
+                    terraform init
+                '''
             }
         }
-
         stage('Terraform Plan') {
+            agent { node('master') }
             steps {
-                // Run Terraform plan to see changes
-                sh 'terraform plan'
+                sh '''
+                    cd terraform
+                    terraform plan -var "region=${REGION}" -var "profile=${PROFILE}" -var "repo_name=${REPO_NAME}" -var-file=../../config/${ENV}/terraform.tfvars
+                '''
             }
         }
-
-        //stage('Terraform Apply') {
-        //    steps {
-                // Apply Terraform changes (typically you'd want to do this manually or with a confirmation step)
-           //     sh 'terraform apply -auto-approve'
-         //   }
-       // }
-   // }
-
+        stage('Terraform Apply') {
+            agent { node('master') }
+            steps {
+                sh '''
+                    cd terraform
+                    terraform apply -auto-approve -var "region=${REGION}" -var "profile=${PROFILE}" -var "repo_name=${REPO_NAME}" -var-file=../../config/${ENV}/terraform.tfvars
+                '''
+            }
+        }
+    }
     post {
-        always {
-            // Archive Terraform plan output
-            archiveArtifacts artifacts: '*.tfplan', allowEmptyArchive: true
-        }
-
         success {
-            echo 'Terraform was successful!'
+            notify("Completed", "${JOB_NAME}", "${BUILD_NUMBER}", "${BRANCH}", "${ENV}", "good")
         }
-
         failure {
-            echo 'Terraform failed!'
+            notify_failures("Failed", "${JOB_NAME}", "${env.BUILD_USER}", "${BUILD_NUMBER}", "${BRANCH}", "${ENV}", "danger")
+        }
+        always {
+            node('master') {
+                deleteDir()
+            }
         }
     }
 }
