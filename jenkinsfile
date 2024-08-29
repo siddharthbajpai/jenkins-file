@@ -1,58 +1,63 @@
 pipeline {
     agent any
 
-    // environment {
-    //     // Define AWS credentials and region
-    //     AWS_CREDENTIALS = 'your-aws-credentials-id'
-    //     AWS_REGION = 'us-east-1'
-    // }
+    environment {
+        // Uncomment and configure if using AWS credentials
+        // AWS_CREDENTIALS = 'your-aws-credentials-id'
+        // AWS_REGION = 'us-east-1'
+    }
+
+    parameters {
+        string(name: 'BRANCH', defaultValue: 'main', description: 'Git branch to build')
+    }
 
     stages {
         stage('Clone') {
             steps {
-                  git credentialsId: 'Github',
-                        branch: params.BRANCH,
-                        url: 'https://github.com/siddharthbajpai/testjenkins.git'
-                }
+                // Clone the GitHub repository
+                git credentialsId: 'Github',
+                    branch: params.BRANCH,
+                    url: 'https://github.com/siddharthbajpai/testjenkins.git'
             }
-        }
-
         }
 
         stage('Terraform Init') {
             steps {
-                
+                // Initialize Terraform
                 sh 'terraform init'
             }
         }
 
         stage('Terraform Plan') {
             steps {
-                
+                // Generate Terraform plan
                 sh 'terraform plan'
             }
         }
 
-    //     stage('Terraform Apply') {
-    //         steps {
-    //             withCredentials([aws(credentialsId: "${env.AWS_CREDENTIALS}", region: "${env.AWS_REGION}")]) {
-    //                 sh 'terraform apply -auto-approve'
-    //             }
-    //         }
-    //     }
-    // }
+        // Uncomment and configure if you want to apply Terraform changes
+        // stage('Terraform Apply') {
+        //     steps {
+        //         withCredentials([aws(credentialsId: "${env.AWS_CREDENTIALS}", region: "${env.AWS_REGION}")]) {
+        //             sh 'terraform apply -auto-approve'
+        //         }
+        //     }
+        // }
+
+    }
 
     post {
         always {
-            
+            // Actions that should run after every build, regardless of the outcome
+            echo 'Cleaning up...'
         }
         success {
-            
-            echo 'Terraform applied successfully!'
+            // Actions that should run if the build succeeds
+            echo 'Terraform plan completed successfully!'
         }
         failure {
-            
-            echo 'Terraform failed!'
+            // Actions that should run if the build fails
+            echo 'Terraform plan failed!'
         }
     }
 }
