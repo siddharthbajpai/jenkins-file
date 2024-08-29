@@ -1,1 +1,18 @@
-echo "siddharth bajpai"
+pipeline {
+    agent any
+
+    // environment {
+    //     // Define AWS credentials and region
+    //     AWS_CREDENTIALS = 'your-aws-credentials-id'
+    //     AWS_REGION = 'us-east-1'
+    // }
+
+    stages {
+        stage('Clone') {
+            steps {
+                  git credentialsId: 'Github',
+                        branch: params.BRANCH,
+                        url: 'https://github.com/siddharthbajpai/testjenkins.git'
+                }
+            }
+        }
