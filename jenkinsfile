@@ -1,67 +1,57 @@
 pipeline {
-    agent none
-    options {
-        ansiColor('xterm')
-    }
+    agent any
+
     parameters {
-        string(name: 'ENV', defaultValue: 'dev', description: 'Environment for Terraform deployment')
-        string(name: 'BRANCH', defaultValue: 'dev', description: 'Branch to use for deployment')
-        string(name: 'PROFILE', defaultValue: 'dev', description: 'AWS profile for deployment')
-        string(name: 'REGION', defaultValue: 'us-west-2', description: 'AWS region for deployment')
-        string(name: 'REPO_NAME', defaultValue: 'my-ecr-repo', description: 'Name of the ECR repository')
-        string(name: 'JIRATICKET_NO', defaultValue: '', description: 'Optional JIRA ticket number')
-        string(name: 'RELEASE_VERSION', defaultValue: '', description: 'Optional release version')
+        string(name: 'TF_VAR_region', defaultValue: 'us-west-2', description: 'AWS region')
+        string(name: 'TF_VAR_instance_type', defaultValue: 't2.micro', description: 'EC2 instance type')
+        string(name: 'ECR_REPOSITORY_NAME', defaultValue: 'my-repo', description: 'ECR Repository Name')
+        // Add more parameters as needed
     }
+
+    stages {
         stage('Checkout') {
-            agent { node('master') }
             steps {
-                git credentialsId: 'Github',
-                    branch: master,
-                    url: 'git@github.com:siddharthbajpai/jenkins-file.git'
+                checkout scm
             }
         }
-        stage('Terraform Init') {
-            agent { node('master') }
+
+        stage('Generate TFVars') {
             steps {
                 script {
-                    def terraformHome = tool name: 'terraform', type: 'Terraform'
-                    env.PATH = "${terraformHome}/bin:${env.PATH}"
+                    // Generate terraform.tfvars file with parameters
+                    writeFile file: 'terraform.tfvars', text: """\
+region = "${params.TF_VAR_region}"
+instance_type = "${params.TF_VAR_instance_type}"
+ecr_repository_name = "${params.ECR_REPOSITORY_NAME}"
+"""
                 }
-                sh '''
-                    cd terraform
-                    terraform init
-                '''
             }
         }
+
+        stage('Terraform Init') {
+            steps {
+                script {
+                    // Initialize Terraform
+                    sh 'terraform init'
+                }
+            }
+        }
+
         stage('Terraform Plan') {
-            agent { node('master') }
             steps {
-                sh '''
-                    cd terraform
-                    terraform plan -var "region=${REGION}" -var "profile=${PROFILE}" -var "repo_name=${REPO_NAME}" -var-file=../../config/${ENV}/terraform.tfvars
-                '''
+                script {
+                    // Generate Terraform plan
+                    sh 'terraform plan'
+                }
             }
         }
+
         stage('Terraform Apply') {
-            agent { node('master') }
             steps {
-                sh '''
-                    cd terraform
-                    terraform apply -auto-approve -var "region=${REGION}" -var "profile=${PROFILE}" -var "repo_name=${REPO_NAME}" -var-file=../../config/${ENV}/terraform.tfvars
-                '''
-            }
-        }
-    }
-    post {
-        success {
-            notify("Completed", "${JOB_NAME}", "${BUILD_NUMBER}", "${BRANCH}", "${ENV}", "good")
-        }
-        failure {
-            notify_failures("Failed", "${JOB_NAME}", "${env.BUILD_USER}", "${BUILD_NUMBER}", "${BRANCH}", "${ENV}", "danger")
-        }
-        always {
-            node('master') {
-                deleteDir()
+                script {
+                    // Apply Terraform configuration
+                    sh 'terraform apply -auto-approve'
+                }
             }
         }
     }
